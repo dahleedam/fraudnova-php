@@ -6,8 +6,10 @@ namespace FraudNova\Http;
 
 use FraudNova\Client;
 use FraudNova\Exception\ApiException;
+use FraudNova\Exception\RateLimitException;
 use FraudNova\Exception\TransportException;
 use FraudNova\Exception\UnexpectedResponseException;
+use FraudNova\RetryPolicy;
 use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
@@ -29,8 +31,7 @@ final class Transport
         private ?ClientInterface $httpClient = null,
         private ?RequestFactoryInterface $requestFactory = null,
         private ?StreamFactoryInterface $streamFactory = null,
-        /** @phpstan-ignore property.onlyWritten */
-        private readonly mixed $retry = null,
+        private readonly ?RetryPolicy $retry = null,
         ?HttpClientDiscovery $discovery = null,
     ) {
         $this->apiKey = $apiKey;
@@ -49,9 +50,7 @@ final class Transport
             $url .= '?'.http_build_query($query, '', '&', PHP_QUERY_RFC3986);
         }
 
-        $request = $this->newRequest('GET', $url, $authenticated);
-
-        return $this->send($request);
+        return $this->send(fn (): RequestInterface => $this->newRequest('GET', $url, $authenticated));
     }
 
     /**
@@ -60,11 +59,11 @@ final class Transport
      */
     public function post(string $path, array $json): array
     {
-        $request = $this->newRequest('POST', $this->baseUrl.$path, true)
-            ->withHeader('Content-Type', 'application/json')
-            ->withBody($this->streamFactory()->createStream(json_encode($json, JSON_THROW_ON_ERROR)));
+        $body = json_encode($json, JSON_THROW_ON_ERROR);
 
-        return $this->send($request);
+        return $this->send(fn (): RequestInterface => $this->newRequest('POST', $this->baseUrl.$path, true)
+            ->withHeader('Content-Type', 'application/json')
+            ->withBody($this->streamFactory()->createStream($body)));
     }
 
     private function newRequest(string $method, string $url, bool $authenticated): RequestInterface
@@ -81,17 +80,33 @@ final class Transport
     }
 
     /**
+     * @param  \Closure(): RequestInterface  $buildRequest  called once per attempt so retries get a fresh body stream
      * @return array<string, mixed>
      */
-    private function send(RequestInterface $request): array
+    private function send(\Closure $buildRequest): array
     {
-        try {
-            $response = $this->httpClient()->sendRequest($request);
-        } catch (ClientExceptionInterface $e) {
-            throw new TransportException('FraudNova request failed: '.$e->getMessage(), $e);
-        }
+        $attempt = 1;
 
-        return $this->decode($response);
+        while (true) {
+            try {
+                $response = $this->httpClient()->sendRequest($buildRequest());
+            } catch (ClientExceptionInterface $e) {
+                throw new TransportException('FraudNova request failed: '.$e->getMessage(), $e);
+            }
+
+            try {
+                return $this->decode($response);
+            } catch (RateLimitException $e) {
+                $delay = $this->retry?->delayFor($e, $attempt);
+
+                if ($this->retry === null || $delay === null) {
+                    throw $e;
+                }
+
+                $this->retry->sleep($delay);
+                $attempt++;
+            }
+        }
     }
 
     /**

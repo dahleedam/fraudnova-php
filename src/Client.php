@@ -32,7 +32,7 @@ final class Client
         ?RequestFactoryInterface $requestFactory = null,
         ?StreamFactoryInterface $streamFactory = null,
         string $baseUrl = self::DEFAULT_BASE_URL,
-        mixed $retry = null,
+        ?RetryPolicy $retry = null,
     ) {
         $apiKey = trim($apiKey);
 
