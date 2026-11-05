@@ -23,7 +23,7 @@ final class Coerce
         }
 
         if (is_string($v)) {
-            return preg_match('/^-?\d+$/', $v) === 1 ? (int) $v : null;
+            return preg_match('/^-?\d+\z/', $v) === 1 ? (int) $v : null;
         }
 
         if (is_float($v) && is_finite($v) && floor($v) === $v && abs($v) < 9.2e18) {
