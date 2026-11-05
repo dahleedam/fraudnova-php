@@ -87,6 +87,30 @@ final class ApiExceptionTest extends TestCase
         self::assertNull($without->retryAfter());
     }
 
+    public function test_retry_after_zero_is_honoured(): void
+    {
+        $e = ApiException::fromResponse(new Response(429, ['Retry-After' => '0'], '{"message":"slow down"}'));
+
+        self::assertInstanceOf(RateLimitException::class, $e);
+        self::assertSame(0, $e->retryAfter());
+    }
+
+    public function test_retry_after_http_date_is_parsed(): void
+    {
+        $e = ApiException::fromResponse(new Response(429, ['Retry-After' => 'Fri, 01 Jan 2100 00:00:00 GMT'], '{"message":"slow down"}'));
+
+        self::assertInstanceOf(RateLimitException::class, $e);
+        self::assertGreaterThan(0, $e->retryAfter());
+    }
+
+    public function test_503_json_list_does_not_claim_a_refund(): void
+    {
+        $e = ApiException::fromResponse(new Response(503, [], '[1]'));
+
+        self::assertInstanceOf(UpstreamException::class, $e);
+        self::assertFalse($e->creditRefunded());
+    }
+
     public function test_503_with_envelope_reports_the_refund(): void
     {
         $e = ApiException::fromResponse(new Response(503, [], '{"success":false,"message":"Upstream lookup failed."}'));

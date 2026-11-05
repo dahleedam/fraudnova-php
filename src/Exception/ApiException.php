@@ -35,8 +35,10 @@ class ApiException extends \RuntimeException implements FraudNovaException
             $apiMessage = $message;
         } else {
             $trimmed = trim($raw);
-            $apiMessage = $trimmed !== '' ? mb_substr($trimmed, 0, 200) : 'HTTP '.$status;
+            $apiMessage = $trimmed !== '' ? substr($trimmed, 0, 200) : 'HTTP '.$status;
         }
+
+        $retryHeader = $response->getHeaderLine('Retry-After');
 
         return match (true) {
             $status === 401 => new AuthenticationException($status, $apiMessage, $body),
@@ -47,9 +49,9 @@ class ApiException extends \RuntimeException implements FraudNovaException
                 $status,
                 $apiMessage,
                 $body,
-                RetryAfter::parse($response->getHeaderLine('Retry-After') ?: null),
+                RetryAfter::parse($retryHeader === '' ? null : $retryHeader),
             ),
-            $status >= 502 && $status <= 504 => new UpstreamException($status, $apiMessage, $body, $status === 503 && $body !== []),
+            $status >= 502 && $status <= 504 => new UpstreamException($status, $apiMessage, $body, $status === 503 && (array_key_exists('success', $body) || array_key_exists('message', $body))),
             default => new self($status, $apiMessage, $body),
         };
     }
