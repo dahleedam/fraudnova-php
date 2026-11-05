@@ -90,4 +90,26 @@ final class IpResultTest extends TestCase
     {
         $this->assertSame([], IpResult::fromArray(['proxy' => 1])->flagReasons());
     }
+
+    public function test_each_boolean_key_maps_to_its_own_property_only(): void
+    {
+        $map = ['proxy' => 'proxy', 'vpn' => 'vpn', 'tor' => 'tor', 'active_vpn' => 'activeVpn', 'active_tor' => 'activeTor', 'recent_abuse' => 'recentAbuse', 'bot_status' => 'botStatus'];
+        foreach ($map as $key => $prop) {
+            $r = IpResult::fromArray([$key => true]);
+            foreach ($map as $other) {
+                $this->assertSame($other === $prop ? true : null, $r->$other, "key $key vs property $other");
+            }
+        }
+    }
+
+    public function test_fraud_score_accepts_numeric_string_and_whole_float(): void
+    {
+        $this->assertSame(85, IpResult::fromArray(['fraud_score' => '85'])->fraudScore);
+        $this->assertSame(85, IpResult::fromArray(['fraud_score' => 85.0])->fraudScore);
+    }
+
+    public function test_unknown_flag_on_name_yields_no_reason(): void
+    {
+        $this->assertSame([], IpResult::fromArray(['proxy' => true])->flagReasons(75, ['not_a_field']));
+    }
 }

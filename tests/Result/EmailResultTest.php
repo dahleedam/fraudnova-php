@@ -69,4 +69,15 @@ final class EmailResultTest extends TestCase
         $this->assertSame(['disposable'], $r->flagReasons());
         $this->assertFalse(EmailResult::fromArray(['honeypot' => true])->flagged());
     }
+
+    public function test_each_boolean_key_maps_to_its_own_property_only(): void
+    {
+        $map = ['valid' => 'valid', 'disposable' => 'disposable', 'catch_all' => 'catchAll', 'generic' => 'generic', 'common' => 'common', 'dns_valid' => 'dnsValid', 'honeypot' => 'honeypot', 'frequent_complainer' => 'frequentComplainer', 'suspect' => 'suspect', 'recent_abuse' => 'recentAbuse', 'leaked' => 'leaked', 'risky_tld' => 'riskyTld', 'spf_record' => 'spfRecord', 'dmarc_record' => 'dmarcRecord'];
+        foreach ($map as $key => $prop) {
+            $r = EmailResult::fromArray([$key => true]);
+            foreach ($map as $other) {
+                $this->assertSame($other === $prop ? true : null, $r->$other, "key $key vs property $other");
+            }
+        }
+    }
 }

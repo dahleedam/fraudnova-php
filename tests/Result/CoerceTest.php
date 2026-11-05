@@ -17,7 +17,7 @@ final class CoerceTest extends TestCase
             'int' => [5, 5], 'negative string' => ['-7', -7], 'string' => ['12', 12],
             'whole float' => [3.0, 3], 'fraction string' => ['1.5', null], 'fraction float' => [1.5, null],
             'nan' => [NAN, null], 'inf' => [INF, null], 'bool' => [true, null], 'null' => [null, null],
-            'array' => [[1], null], 'text' => ['abc', null], 'empty' => ['', null],
+            'array' => [[1], null], 'text' => ['abc', null], 'empty' => ['', null], 'trailing newline' => ["12\n", null],
         ];
     }
 

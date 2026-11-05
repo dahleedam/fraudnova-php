@@ -53,4 +53,15 @@ final class PhoneResultTest extends TestCase
         $this->assertTrue($r->flagged());
         $this->assertFalse(PhoneResult::fromArray(['fraud_score' => 10])->flagged());
     }
+
+    public function test_each_boolean_key_maps_to_its_own_property_only(): void
+    {
+        $map = ['valid' => 'valid', 'recent_abuse' => 'recentAbuse', 'VOIP' => 'voip', 'prepaid' => 'prepaid', 'risky' => 'risky', 'active' => 'active', 'do_not_call' => 'doNotCall', 'leaked' => 'leaked', 'spammer' => 'spammer'];
+        foreach ($map as $key => $prop) {
+            $r = PhoneResult::fromArray([$key => true]);
+            foreach ($map as $other) {
+                $this->assertSame($other === $prop ? true : null, $r->$other, "key $key vs property $other");
+            }
+        }
+    }
 }
