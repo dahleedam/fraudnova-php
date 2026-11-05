@@ -13,6 +13,7 @@ use FraudNova\IpOptions;
 use FraudNova\Result\EmailResult;
 use FraudNova\Result\IpResult;
 use FraudNova\Result\PhoneResult;
+use FraudNova\RetryPolicy;
 use FraudNova\Tests\Support\FakeHttpClient;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use PHPUnit\Framework\TestCase;
@@ -291,5 +292,19 @@ final class ClientTest extends TestCase
 
         $this->assertSame('1.0.0', Client::VERSION);
         $this->assertStringStartsWith('fraudnova-php/1.0.0 php/', $http->lastRequest()->getHeaderLine('User-Agent'));
+    }
+
+    public function test_retry_policy_retries_a_429_through_the_public_api(): void
+    {
+        $http = (new FakeHttpClient)
+            ->json(429, ['success' => false, 'message' => 'Rate limit exceeded. Try again shortly.'])
+            ->json(200, $this->envelope(['fraud_score' => 5]));
+        $factory = new Psr17Factory;
+        $client = new Client('fn_x', $http, $factory, $factory, retry: new RetryPolicy(maxAttempts: 2, sleeper: fn () => null));
+
+        $result = $client->ip('8.8.8.8');
+
+        $this->assertCount(2, $http->requests);
+        $this->assertSame(5, $result->fraudScore);
     }
 }
