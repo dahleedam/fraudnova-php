@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace FraudNova\Http;
 
+use FraudNova\Client;
 use FraudNova\Exception\ApiException;
 use FraudNova\Exception\TransportException;
 use FraudNova\Exception\UnexpectedResponseException;
@@ -16,8 +17,6 @@ use Psr\Http\Message\StreamFactoryInterface;
 
 final class Transport
 {
-    private const VERSION = '1.0.0';
-
     private readonly string $baseUrl;
 
     private readonly string $apiKey;
@@ -72,7 +71,7 @@ final class Transport
     {
         $request = $this->requestFactory()->createRequest($method, $url)
             ->withHeader('Accept', 'application/json')
-            ->withHeader('User-Agent', 'fraudnova-php/'.self::VERSION.' php/'.PHP_VERSION);
+            ->withHeader('User-Agent', 'fraudnova-php/'.Client::VERSION.' php/'.PHP_VERSION);
 
         if ($authenticated) {
             $request = $request->withHeader('Authorization', 'Bearer '.$this->apiKey);
