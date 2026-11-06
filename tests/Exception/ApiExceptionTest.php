@@ -180,4 +180,71 @@ final class ApiExceptionTest extends TestCase
             self::assertInstanceOf(FraudNovaException::class, $e);
         }
     }
+
+    /**
+     * @return array<int, array{int, class-string<ApiException>}>
+     */
+    public static function envelopeOnlyStatuses(): array
+    {
+        return [
+            '401' => [401, AuthenticationException::class],
+            '402' => [402, InsufficientCreditsException::class],
+            '403' => [403, AccountSuspendedException::class],
+            '422' => [422, ValidationException::class],
+        ];
+    }
+
+    /**
+     * @param  class-string<ApiException>  $class
+     */
+    #[DataProvider('envelopeOnlyStatuses')]
+    public function test_html_body_on_an_envelope_status_is_a_plain_api_exception(int $status, string $class): void
+    {
+        $e = ApiException::fromResponse(new Response($status, [], '<html>cf</html>'));
+
+        self::assertSame(ApiException::class, get_class($e));
+        self::assertSame($status, $e->statusCode());
+        self::assertSame('<html>cf</html>', $e->apiMessage());
+    }
+
+    /**
+     * @param  class-string<ApiException>  $class
+     */
+    #[DataProvider('envelopeOnlyStatuses')]
+    public function test_json_envelope_on_an_envelope_status_is_typed(int $status, string $class): void
+    {
+        $e = ApiException::fromResponse(new Response($status, [], '{"success":false,"message":"nope"}'));
+
+        self::assertSame($class, get_class($e));
+        self::assertSame($status, $e->statusCode());
+    }
+
+    public function test_json_without_envelope_keys_on_an_envelope_status_is_a_plain_api_exception(): void
+    {
+        $e = ApiException::fromResponse(new Response(403, [], '{"error":"forbidden"}'));
+
+        self::assertSame(ApiException::class, get_class($e));
+    }
+
+    public function test_non_json_body_message_says_so(): void
+    {
+        $e = ApiException::fromResponse(new Response(502, [], '<html>Bad gateway</html>'));
+
+        self::assertSame('FraudNova API error (HTTP 502): non-JSON response', $e->getMessage());
+        self::assertSame('<html>Bad gateway</html>', $e->apiMessage());
+    }
+
+    public function test_json_envelope_message_is_unchanged(): void
+    {
+        $e = ApiException::fromResponse(new Response(500, [], '{"success":false,"message":"Server error."}'));
+
+        self::assertSame('FraudNova API error (HTTP 500): Server error.', $e->getMessage());
+    }
+
+    public function test_long_multibyte_raw_body_is_truncated_by_characters(): void
+    {
+        $e = ApiException::fromResponse(new Response(500, [], str_repeat('é', 300)));
+
+        self::assertSame(str_repeat('é', 200), $e->apiMessage());
+    }
 }
