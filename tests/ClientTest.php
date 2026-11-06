@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace FraudNova\Tests;
 
 use FraudNova\Client;
+use FraudNova\Exception\FraudNovaException;
 use FraudNova\Exception\InvalidArgumentException;
 use FraudNova\Exception\RateLimitException;
 use FraudNova\Exception\UnexpectedResponseException;
@@ -306,5 +307,20 @@ final class ClientTest extends TestCase
 
         $this->assertCount(2, $http->requests);
         $this->assertSame(5, $result->fraudScore);
+    }
+
+    public function test_unencodable_batch_body_throws_invalid_argument(): void
+    {
+        $http = new FakeHttpClient;
+
+        try {
+            $this->client($http)->batchIp(['8.8.8.8'], new IpOptions(userAgent: "Mozilla \xC3\x28"));
+            $this->fail('Expected InvalidArgumentException');
+        } catch (InvalidArgumentException $e) {
+            $this->assertInstanceOf(FraudNovaException::class, $e);
+            $this->assertStringStartsWith('Request body could not be encoded as JSON: ', $e->getMessage());
+        }
+
+        $this->assertSame([], $http->requests);
     }
 }
