@@ -195,8 +195,9 @@ final class ClientTest extends TestCase
         $cases = [
             'Batch must contain at least one item' => [],
             'Batch may contain at most 100 items' => array_fill(0, 101, '8.8.8.8'),
-            'Batch item #1 must be a non-empty string' => ['8.8.8.8', ''],
-            'Batch item #0 must be a non-empty string' => [42],
+            'Batch item #1 must be a string or null' => ['8.8.8.8', 5],
+            'Batch item #0 must be a string or null' => [42],
+            'Batch item #2 must be a string or null' => ['8.8.8.8', null, ['1.1.1.1']],
         ];
 
         foreach ($cases as $message => $items) {
@@ -344,5 +345,28 @@ final class ClientTest extends TestCase
         (new Client('fn_x', $http, $factory, $factory, ' https://example.test/api/v1/ '))->balance();
 
         $this->assertSame('https://example.test/api/v1/balance', (string) $http->lastRequest()->getUri());
+    }
+
+    public function test_batch_passes_empty_and_null_items_through(): void
+    {
+        $http = (new FakeHttpClient)->json(200, [
+            'success' => true,
+            'results' => [
+                ['ip' => '8.8.8.8', 'success' => true, 'data' => ['fraud_score' => 5]],
+                ['ip' => '', 'success' => false, 'error' => 'invalid_ip'],
+                ['ip' => null, 'success' => false, 'error' => 'invalid_ip'],
+            ],
+            'credits_remaining' => 3,
+        ]);
+
+        $batch = $this->client($http)->batchIp(['8.8.8.8', '', null]);
+
+        $this->assertSame('{"ips":["8.8.8.8","",null]}', (string) $http->lastRequest()->getBody());
+        $this->assertCount(3, $batch);
+        $this->assertCount(2, $batch->failed());
+        $this->assertFalse($batch->items[1]->success);
+        $this->assertTrue($batch->items[1]->isInvalid());
+        $this->assertTrue($batch->items[2]->isInvalid());
+        $this->assertSame('', $batch->items[2]->subject);
     }
 }
