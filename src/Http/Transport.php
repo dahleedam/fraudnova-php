@@ -46,6 +46,29 @@ final class Transport
     }
 
     /**
+     * Keeps the API key out of var_dump() and print_r() output.
+     *
+     * @return array<string, mixed>
+     */
+    public function __debugInfo(): array
+    {
+        return [
+            'apiKey' => self::maskKey($this->apiKey),
+            'baseUrl' => $this->baseUrl,
+            'httpClient' => $this->httpClient === null ? null : $this->httpClient::class,
+            'retry' => $this->retry,
+        ];
+    }
+
+    /**
+     * "fn_…" plus the last four characters; a short key shows no characters at all.
+     */
+    public static function maskKey(#[\SensitiveParameter] string $apiKey): string
+    {
+        return strlen($apiKey) > 12 ? 'fn_…'.substr($apiKey, -4) : 'fn_…';
+    }
+
+    /**
      * @param  array<string, string|int>  $query
      * @return array<string, mixed>
      */

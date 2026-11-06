@@ -369,4 +369,31 @@ final class ClientTest extends TestCase
         $this->assertTrue($batch->items[2]->isInvalid());
         $this->assertSame('', $batch->items[2]->subject);
     }
+
+    public function test_dumping_the_client_never_shows_the_api_key(): void
+    {
+        $key = 'fn_supersecretvalue9876';
+        $client = $this->client(new FakeHttpClient, $key);
+
+        ob_start();
+        var_dump($client);
+        $dumped = (string) ob_get_clean();
+        $printed = print_r($client, true);
+
+        foreach ([$dumped, $printed] as $output) {
+            $this->assertStringNotContainsString($key, $output);
+            $this->assertStringNotContainsString('supersecret', $output);
+            $this->assertStringContainsString('fn_…9876', $output);
+        }
+
+        $this->assertSame(['transport'], array_keys($client->__debugInfo()));
+    }
+
+    public function test_short_api_key_is_fully_masked_in_dumps(): void
+    {
+        $printed = print_r($this->client(new FakeHttpClient, 'fn_abc12'), true);
+
+        $this->assertStringNotContainsString('abc12', $printed);
+        $this->assertStringContainsString('fn_…', $printed);
+    }
 }
