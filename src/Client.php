@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace FraudNova;
 
 use FraudNova\Exception\InvalidArgumentException;
-use FraudNova\Exception\UnexpectedResponseException;
 use FraudNova\Http\Transport;
 use FraudNova\Result\BatchResult;
 use FraudNova\Result\Coerce;
@@ -62,16 +61,16 @@ final class Client
     public function ip(string $ip, ?IpOptions $options = null): IpResult
     {
         $query = ['ip' => $this->requireSubject($ip, 'ip')] + ($options?->toQuery() ?? []);
-        $envelope = $this->transport->get('/check', $query);
+        $envelope = $this->transport->get('/check', $query, true, self::requireData(...));
 
-        return IpResult::fromArray($this->dataFrom($envelope), Coerce::int($envelope['credits_remaining'] ?? null));
+        return IpResult::fromArray(self::data($envelope), Coerce::int($envelope['credits_remaining'] ?? null));
     }
 
     public function email(string $email): EmailResult
     {
-        $envelope = $this->transport->get('/check/email', ['email' => $this->requireSubject($email, 'email')]);
+        $envelope = $this->transport->get('/check/email', ['email' => $this->requireSubject($email, 'email')], true, self::requireData(...));
 
-        return EmailResult::fromArray($this->dataFrom($envelope), Coerce::int($envelope['credits_remaining'] ?? null));
+        return EmailResult::fromArray(self::data($envelope), Coerce::int($envelope['credits_remaining'] ?? null));
     }
 
     public function phone(string $phone, ?string $country = null): PhoneResult
@@ -82,9 +81,9 @@ final class Client
             $query['country'] = $country;
         }
 
-        $envelope = $this->transport->get('/check/phone', $query);
+        $envelope = $this->transport->get('/check/phone', $query, true, self::requireData(...));
 
-        return PhoneResult::fromArray($this->dataFrom($envelope), Coerce::int($envelope['credits_remaining'] ?? null));
+        return PhoneResult::fromArray(self::data($envelope), Coerce::int($envelope['credits_remaining'] ?? null));
     }
 
     /**
@@ -94,7 +93,7 @@ final class Client
     {
         $body = ['ips' => $this->requireBatch($ips)] + ($options?->toJson() ?? []);
 
-        return BatchResult::fromArray($this->resultsEnvelope($this->transport->post('/check/batch', $body)), 'ip');
+        return BatchResult::fromArray($this->transport->post('/check/batch', $body, self::requireResults(...)), 'ip');
     }
 
     /**
@@ -104,7 +103,7 @@ final class Client
     {
         $body = ['emails' => $this->requireBatch($emails)];
 
-        return BatchResult::fromArray($this->resultsEnvelope($this->transport->post('/check/email/batch', $body)), 'email');
+        return BatchResult::fromArray($this->transport->post('/check/email/batch', $body, self::requireResults(...)), 'email');
     }
 
     /**
@@ -118,31 +117,21 @@ final class Client
             $body['country'] = $country;
         }
 
-        return BatchResult::fromArray($this->resultsEnvelope($this->transport->post('/check/phone/batch', $body)), 'phone');
+        return BatchResult::fromArray($this->transport->post('/check/phone/batch', $body, self::requireResults(...)), 'phone');
     }
 
     public function balance(): int
     {
-        $envelope = $this->transport->get('/balance');
-        $credits = Coerce::int($envelope['credits_remaining'] ?? null);
+        $envelope = $this->transport->get('/balance', [], true, static fn (array $e): ?string => Coerce::int($e['credits_remaining'] ?? null) === null ? 'Missing credits_remaining' : null);
 
-        if ($credits === null) {
-            throw new UnexpectedResponseException(200, 'Missing credits_remaining', $envelope);
-        }
-
-        return $credits;
+        return Coerce::int($envelope['credits_remaining'] ?? null) ?? 0;
     }
 
     public function myIp(): string
     {
-        $envelope = $this->transport->get('/my-ip', [], false);
-        $ip = $envelope['ip'] ?? null;
+        $envelope = $this->transport->get('/my-ip', [], false, static fn (array $e): ?string => is_string($e['ip'] ?? null) && $e['ip'] !== '' ? null : 'Missing ip');
 
-        if (! is_string($ip) || $ip === '') {
-            throw new UnexpectedResponseException(200, 'Missing ip', $envelope);
-        }
-
-        return $ip;
+        return Coerce::string($envelope['ip'] ?? null) ?? '';
     }
 
     private function requireSubject(string $value, string $name): string
@@ -192,30 +181,31 @@ final class Client
 
     /**
      * @param  array<string, mixed>  $envelope
-     * @return array<string, mixed>
      */
-    private function dataFrom(array $envelope): array
+    private static function requireData(array $envelope): ?string
     {
-        $data = $envelope['data'] ?? null;
-
-        if (! is_array($data)) {
-            throw new UnexpectedResponseException(200, 'Missing data', $envelope);
-        }
-
-        /** @var array<string, mixed> $data */
-        return $data;
+        return is_array($envelope['data'] ?? null) ? null : 'Missing data';
     }
 
     /**
      * @param  array<string, mixed>  $envelope
+     */
+    private static function requireResults(array $envelope): ?string
+    {
+        $results = $envelope['results'] ?? null;
+
+        return is_array($results) && array_is_list($results) ? null : 'Missing results';
+    }
+
+    /**
+     * @param  array<string, mixed>  $envelope  already checked by requireData()
      * @return array<string, mixed>
      */
-    private function resultsEnvelope(array $envelope): array
+    private static function data(array $envelope): array
     {
-        if (! is_array($envelope['results'] ?? null) || ! array_is_list($envelope['results'])) {
-            throw new UnexpectedResponseException(200, 'Missing results', $envelope);
-        }
+        /** @var array<string, mixed> $data */
+        $data = $envelope['data'];
 
-        return $envelope;
+        return $data;
     }
 }

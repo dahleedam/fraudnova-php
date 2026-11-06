@@ -396,4 +396,31 @@ final class ClientTest extends TestCase
         $this->assertStringNotContainsString('abc12', $printed);
         $this->assertStringContainsString('fn_…', $printed);
     }
+
+    public function test_unexpected_response_carries_the_real_2xx_status(): void
+    {
+        $http = (new FakeHttpClient)
+            ->json(201, ['success' => true])
+            ->json(201, ['success' => true, 'ip' => ''])
+            ->json(201, ['success' => true, 'credits_remaining' => 3])
+            ->json(201, ['success' => true, 'data' => 'nope']);
+        $client = $this->client($http);
+
+        $calls = [
+            'Missing credits_remaining' => static fn () => $client->balance(),
+            'Missing ip' => static fn () => $client->myIp(),
+            'Missing results' => static fn () => $client->batchIp(['8.8.8.8']),
+            'Missing data' => static fn () => $client->ip('8.8.8.8'),
+        ];
+
+        foreach ($calls as $message => $call) {
+            try {
+                $call();
+                $this->fail('Expected UnexpectedResponseException for: '.$message);
+            } catch (UnexpectedResponseException $e) {
+                $this->assertSame(201, $e->statusCode(), $message);
+                $this->assertSame($message, $e->apiMessage());
+            }
+        }
+    }
 }
