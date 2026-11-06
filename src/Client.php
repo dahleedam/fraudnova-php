@@ -40,6 +40,12 @@ final class Client
             throw new InvalidArgumentException('API key must not be empty');
         }
 
+        $baseUrl = trim($baseUrl);
+
+        if (preg_match('#^https?://#i', $baseUrl) !== 1) {
+            throw new InvalidArgumentException('baseUrl must be an absolute http:// or https:// URL');
+        }
+
         $this->transport = new Transport($apiKey, $baseUrl, $httpClient, $requestFactory, $streamFactory, $retry);
     }
 

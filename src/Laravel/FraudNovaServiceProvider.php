@@ -28,17 +28,22 @@ final class FraudNovaServiceProvider extends ServiceProvider
             }
 
             $timeout = $config->get('fraudnova.timeout');
+            $timeout = is_numeric($timeout) && (float) $timeout > 0 ? (float) $timeout : 30.0;
+
             $attempts = $config->get('fraudnova.retry_max_attempts');
             $n = is_numeric($attempts) ? (int) $attempts : 0;
+
+            $baseUrl = $config->get('fraudnova.base_url');
+            $baseUrl = is_string($baseUrl) && trim($baseUrl) !== '' ? $baseUrl : Client::DEFAULT_BASE_URL;
 
             $discovery = new HttpClientDiscovery;
 
             return new Client(
                 $key,
-                $discovery->client(is_numeric($timeout) ? (float) $timeout : 30.0),
+                $discovery->client($timeout),
                 $discovery->requestFactory(),
                 $discovery->streamFactory(),
-                $this->stringValue($config->get('fraudnova.base_url')),
+                $baseUrl,
                 $n >= 2 ? new RetryPolicy(maxAttempts: $n) : null,
             );
         });
