@@ -199,7 +199,7 @@ use FraudNova\RetryPolicy;
 $client = new Client('fn_your_api_key', retry: new RetryPolicy(maxAttempts: 3));
 ```
 
-`maxAttempts` counts the first attempt, so `3` means up to two retries. Only 429 is retried; every other error is thrown right away. The wait is the `Retry-After` header when the response has one, otherwise a short schedule for the concurrency limit and a longer one for the rate limit. When the attempts run out, the `RateLimitException` is thrown. Batch requests are safe to retry, because a 429 is returned before any item is checked.
+`maxAttempts` counts the first attempt, so `3` means up to two retries. Only 429 is retried; every other error is thrown right away. The wait is the `Retry-After` header when the response has one, otherwise a short schedule for the concurrency limit and a longer one for the rate limit. When the attempts run out, the `RateLimitException` is thrown. A `Retry-After` longer than `maxRetryAfter` (60 seconds by default) is not waited for; the `RateLimitException` is thrown right away. Batch requests are safe to retry, because a 429 is returned before any item is checked.
 
 ## Bring your own HTTP client
 

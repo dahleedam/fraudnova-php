@@ -62,6 +62,13 @@ final class RetryPolicyTest extends TestCase
         new RetryPolicy(maxAttempts: 0);
     }
 
+    public function test_negative_max_retry_after_is_rejected(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        new RetryPolicy(maxRetryAfter: -1);
+    }
+
     public function test_sleep_uses_injected_sleeper(): void
     {
         $slept = [];
@@ -72,5 +79,32 @@ final class RetryPolicyTest extends TestCase
         $policy->sleep(2.5);
 
         $this->assertSame([2.5], $slept);
+    }
+
+    public function test_retry_after_above_the_cap_stops_retrying(): void
+    {
+        $this->assertNull((new RetryPolicy)->delayFor($this->rateLimit(86400), 1));
+        $this->assertNull((new RetryPolicy(maxRetryAfter: 10))->delayFor($this->rateLimit(11), 1));
+    }
+
+    public function test_retry_after_at_or_below_the_cap_is_honoured(): void
+    {
+        $this->assertSame(30.0, (new RetryPolicy)->delayFor($this->rateLimit(30), 1));
+        $this->assertSame(60.0, (new RetryPolicy)->delayFor($this->rateLimit(60), 1));
+    }
+
+    public function test_cap_does_not_apply_when_retry_after_is_not_honoured(): void
+    {
+        $this->assertSame(5.0, (new RetryPolicy(honourRetryAfter: false))->delayFor($this->rateLimit(86400), 1));
+    }
+
+    public function test_schedule_exhausted_before_max_attempts_stops_retrying(): void
+    {
+        $policy = new RetryPolicy(maxAttempts: 10, concurrencyDelays: [1], rateLimitDelays: [5, 15]);
+
+        $this->assertSame(1.0, $policy->delayFor($this->concurrency(), 1));
+        $this->assertNull($policy->delayFor($this->concurrency(), 2));
+        $this->assertSame(15.0, $policy->delayFor($this->rateLimit(), 2));
+        $this->assertNull($policy->delayFor($this->rateLimit(), 3));
     }
 }
