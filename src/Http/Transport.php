@@ -6,6 +6,7 @@ namespace FraudNova\Http;
 
 use FraudNova\Client;
 use FraudNova\Exception\ApiException;
+use FraudNova\Exception\InvalidArgumentException;
 use FraudNova\Exception\RateLimitException;
 use FraudNova\Exception\TransportException;
 use FraudNova\Exception\UnexpectedResponseException;
@@ -59,7 +60,11 @@ final class Transport
      */
     public function post(string $path, array $json): array
     {
-        $body = json_encode($json, JSON_THROW_ON_ERROR);
+        try {
+            $body = json_encode($json, JSON_THROW_ON_ERROR);
+        } catch (\JsonException $e) {
+            throw new InvalidArgumentException('Request body could not be encoded as JSON: '.$e->getMessage(), 0, $e);
+        }
 
         return $this->send(fn (): RequestInterface => $this->newRequest('POST', $this->baseUrl.$path, true)
             ->withHeader('Content-Type', 'application/json')
