@@ -323,4 +323,26 @@ final class ClientTest extends TestCase
 
         $this->assertSame([], $http->requests);
     }
+
+    public function test_unusable_base_url_is_rejected(): void
+    {
+        foreach (['', '   ', 'fraudnova.com/api/v1', 'ftp://fraudnova.com/api/v1'] as $baseUrl) {
+            try {
+                new Client('fn_x', baseUrl: $baseUrl);
+                $this->fail('Expected InvalidArgumentException for: '.$baseUrl);
+            } catch (InvalidArgumentException $e) {
+                $this->assertStringContainsString('baseUrl', $e->getMessage());
+            }
+        }
+    }
+
+    public function test_base_url_is_trimmed(): void
+    {
+        $http = (new FakeHttpClient)->json(200, ['success' => true, 'credits_remaining' => 1]);
+        $factory = new Psr17Factory;
+
+        (new Client('fn_x', $http, $factory, $factory, ' https://example.test/api/v1/ '))->balance();
+
+        $this->assertSame('https://example.test/api/v1/balance', (string) $http->lastRequest()->getUri());
+    }
 }
