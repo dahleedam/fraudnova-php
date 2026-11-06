@@ -112,4 +112,13 @@ final class IpResultTest extends TestCase
     {
         $this->assertSame([], IpResult::fromArray(['proxy' => true])->flagReasons(75, ['not_a_field']));
     }
+
+    public function test_fractional_fraud_score_rounds_and_flags(): void
+    {
+        $r = IpResult::fromArray(['fraud_score' => 87.5]);
+
+        $this->assertSame(88, $r->fraudScore);
+        $this->assertTrue($r->flagged(88));
+        $this->assertSame(['fraud_score'], $r->flagReasons(88));
+    }
 }

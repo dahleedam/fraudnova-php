@@ -16,6 +16,9 @@ final class Coerce
         return is_bool($v) ? $v : null;
     }
 
+    /**
+     * Integers and whole-number strings as-is; floats and decimal strings rounded half up.
+     */
     public static function int(mixed $v): ?int
     {
         if (is_int($v)) {
@@ -23,11 +26,20 @@ final class Coerce
         }
 
         if (is_string($v)) {
-            return preg_match('/^-?\d+\z/', $v) === 1 ? (int) $v : null;
+            if (preg_match('/^-?\d+\z/', $v) === 1) {
+                return (int) $v;
+            }
+
+            if (preg_match('/^-?\d+\.\d+\z/', $v) !== 1) {
+                return null;
+            }
+
+            $v = (float) $v;
         }
 
-        if (is_float($v) && is_finite($v) && floor($v) === $v && abs($v) < 9.2e18) {
-            return (int) $v;
+        // A fractional number rounds half up (87.5 becomes 88).
+        if (is_float($v) && is_finite($v) && abs($v) < 9.2e18) {
+            return (int) round($v);
         }
 
         return null;
