@@ -53,7 +53,7 @@ final class LeakGuardTest extends TestCase
 
     public function test_scanner_detects_a_forbidden_reference(): void
     {
-        $dir = sys_get_temp_dir().'/fn-leak-'.bin2hex(random_bytes(4));
+        $dir = sys_get_temp_dir().'/'.uniqid('fn-leak-', true);
         mkdir($dir);
         file_put_contents($dir.'/sample.txt', "clean\nuses ".'ip'.'qs'." here\n");
 
