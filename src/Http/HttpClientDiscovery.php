@@ -12,30 +12,41 @@ use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use Symfony\Component\HttpClient\Psr18Client;
 
+/**
+ * Finds an installed PSR-18 client and PSR-17 factories: Guzzle first, then the Symfony HTTP client.
+ *
+ * @internal
+ */
 final class HttpClientDiscovery
 {
     /** @var \Closure(string): bool */
     private \Closure $classExists;
 
+    /** @var \Closure(string, string): bool */
+    private \Closure $isA;
+
+    /** @var \Closure(): Psr18Client */
+    private \Closure $newSymfonyClient;
+
     /**
      * @param  (\Closure(string): bool)|null  $classExists
+     * @param  (\Closure(string, string): bool)|null  $isA  is_a($class, $interface, true), replaceable for tests
+     * @param  (\Closure(): Psr18Client)|null  $newSymfonyClient
      */
-    public function __construct(?\Closure $classExists = null)
+    public function __construct(?\Closure $classExists = null, ?\Closure $isA = null, ?\Closure $newSymfonyClient = null)
     {
         $this->classExists = $classExists ?? static fn (string $class): bool => class_exists($class);
+        $this->isA = $isA ?? static fn (string $class, string $interface): bool => is_a($class, $interface, true);
+        $this->newSymfonyClient = $newSymfonyClient ?? static fn (): Psr18Client => new Psr18Client;
     }
 
     public function client(float $timeout = 30.0, float $connectTimeout = 10.0): ClientInterface
     {
-        if (($this->classExists)(GuzzleClient::class)) {
-            return new GuzzleClient(['timeout' => $timeout, 'connect_timeout' => $connectTimeout]);
-        }
-
-        if (($this->classExists)(Psr18Client::class)) {
-            return new Psr18Client;
-        }
-
-        throw $this->missing();
+        return match ($this->provider()) {
+            'guzzle' => new GuzzleClient(['timeout' => $timeout, 'connect_timeout' => $connectTimeout]),
+            'symfony' => $this->symfony(),
+            null => throw $this->missing(),
+        };
     }
 
     public function requestFactory(): RequestFactoryInterface
@@ -50,15 +61,38 @@ final class HttpClientDiscovery
 
     private function factory(): HttpFactory|Psr18Client
     {
-        if (($this->classExists)(GuzzleClient::class)) {
-            return new HttpFactory;
+        return match ($this->provider()) {
+            'guzzle' => new HttpFactory,
+            'symfony' => $this->symfony(),
+            null => throw $this->missing(),
+        };
+    }
+
+    /**
+     * @return 'guzzle'|'symfony'|null
+     */
+    private function provider(): ?string
+    {
+        if (($this->classExists)(GuzzleClient::class)
+            && ($this->isA)(GuzzleClient::class, ClientInterface::class)
+            && ($this->classExists)(HttpFactory::class)) {
+            return 'guzzle';
         }
 
         if (($this->classExists)(Psr18Client::class)) {
-            return new Psr18Client;
+            return 'symfony';
         }
 
-        throw $this->missing();
+        return null;
+    }
+
+    private function symfony(): Psr18Client
+    {
+        try {
+            return ($this->newSymfonyClient)();
+        } catch (\Throwable $e) {
+            throw new MissingHttpClientException('The Symfony HTTP client needs a PSR-17 implementation. Run "composer require nyholm/psr7".', 0, $e);
+        }
     }
 
     private function missing(): MissingHttpClientException
