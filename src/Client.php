@@ -49,6 +49,16 @@ final class Client
         $this->transport = new Transport($apiKey, $baseUrl, $httpClient, $requestFactory, $streamFactory, $retry);
     }
 
+    /**
+     * Keeps the API key out of var_dump() and print_r() output.
+     *
+     * @return array{transport: Transport}
+     */
+    public function __debugInfo(): array
+    {
+        return ['transport' => $this->transport];
+    }
+
     public function ip(string $ip, ?IpOptions $options = null): IpResult
     {
         $query = ['ip' => $this->requireSubject($ip, 'ip')] + ($options?->toQuery() ?? []);
