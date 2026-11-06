@@ -70,23 +70,25 @@ final class Transport
 
     /**
      * @param  array<string, string|int>  $query
+     * @param  ?\Closure(array<string, mixed>): ?string  $validate  returns an error message when a 2xx body lacks what the caller needs
      * @return array<string, mixed>
      */
-    public function get(string $path, array $query = [], bool $authenticated = true): array
+    public function get(string $path, array $query = [], bool $authenticated = true, ?\Closure $validate = null): array
     {
         $url = $this->baseUrl.$path;
         if ($query !== []) {
             $url .= '?'.http_build_query($query, '', '&', PHP_QUERY_RFC3986);
         }
 
-        return $this->send(fn (): RequestInterface => $this->newRequest('GET', $url, $authenticated));
+        return $this->send(fn (): RequestInterface => $this->newRequest('GET', $url, $authenticated), $validate);
     }
 
     /**
      * @param  array<string, mixed>  $json
+     * @param  ?\Closure(array<string, mixed>): ?string  $validate  returns an error message when a 2xx body lacks what the caller needs
      * @return array<string, mixed>
      */
-    public function post(string $path, array $json): array
+    public function post(string $path, array $json, ?\Closure $validate = null): array
     {
         try {
             $body = json_encode($json, JSON_THROW_ON_ERROR);
@@ -96,7 +98,7 @@ final class Transport
 
         return $this->send(fn (): RequestInterface => $this->newRequest('POST', $this->baseUrl.$path, true)
             ->withHeader('Content-Type', 'application/json')
-            ->withBody($this->streamFactory()->createStream($body)));
+            ->withBody($this->streamFactory()->createStream($body)), $validate);
     }
 
     private function newRequest(string $method, string $url, bool $authenticated): RequestInterface
@@ -114,9 +116,10 @@ final class Transport
 
     /**
      * @param  \Closure(): RequestInterface  $buildRequest  called once per attempt so retries get a fresh body stream
+     * @param  ?\Closure(array<string, mixed>): ?string  $validate
      * @return array<string, mixed>
      */
-    private function send(\Closure $buildRequest): array
+    private function send(\Closure $buildRequest, ?\Closure $validate): array
     {
         $attempt = 1;
 
@@ -128,7 +131,7 @@ final class Transport
             }
 
             try {
-                return $this->decode($response);
+                return $this->decode($response, $validate);
             } catch (RateLimitException $e) {
                 $delay = $this->retry?->delayFor($e, $attempt);
 
@@ -143,9 +146,10 @@ final class Transport
     }
 
     /**
+     * @param  ?\Closure(array<string, mixed>): ?string  $validate
      * @return array<string, mixed>
      */
-    private function decode(ResponseInterface $response): array
+    private function decode(ResponseInterface $response, ?\Closure $validate): array
     {
         $status = $response->getStatusCode();
 
@@ -163,6 +167,12 @@ final class Transport
         }
 
         /** @var array<string, mixed> $decoded */
+        $problem = $validate === null ? null : $validate($decoded);
+
+        if ($problem !== null) {
+            throw new UnexpectedResponseException($status, $problem, $decoded);
+        }
+
         return $decoded;
     }
 
