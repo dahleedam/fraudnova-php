@@ -181,7 +181,7 @@ try {
 | `RateLimitException` | 429 | Too many requests, or too many checks in flight at once. `retryAfter()` and `isConcurrencyLimit()` tell you which. |
 | `UpstreamException` | 502, 503, 504 | The lookup failed. On a 503 the credit is refunded automatically and `creditRefunded()` returns `true`. |
 | `UnexpectedResponseException` | 2xx | The response could not be read as a FraudNova response. |
-| `ApiException` | any other error status | Base class of every exception with a status. `statusCode()`, `apiMessage()` and `body()` are on all of them. |
+| `ApiException` | any other error status | Base class of every exception with a status. `statusCode()`, `apiMessage()` and `body()` are on all of them. A 401, 402, 403 or 422 whose body is not a FraudNova JSON response (for example a proxy error page) is a plain `ApiException`. |
 | `TransportException` | none | The HTTP client failed, for example a timeout or DNS error. The original exception is `getPrevious()`. |
 | `InvalidArgumentException` | none | A value was empty or out of range; no request was sent. |
 | `MissingHttpClientException` | none | No PSR-18 client was installed or injected. |
