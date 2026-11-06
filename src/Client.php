@@ -78,7 +78,7 @@ final class Client
     }
 
     /**
-     * @param  list<string>  $ips
+     * @param  list<string|null>  $ips
      */
     public function batchIp(array $ips, ?IpOptions $options = null): BatchResult
     {
@@ -88,7 +88,7 @@ final class Client
     }
 
     /**
-     * @param  list<string>  $emails
+     * @param  list<string|null>  $emails
      */
     public function batchEmail(array $emails): BatchResult
     {
@@ -98,7 +98,7 @@ final class Client
     }
 
     /**
-     * @param  list<string>  $phones
+     * @param  list<string|null>  $phones
      */
     public function batchPhone(array $phones, ?string $country = null): BatchResult
     {
@@ -155,7 +155,7 @@ final class Client
 
     /**
      * @param  array<mixed>  $items
-     * @return list<string>
+     * @return list<string|null>
      */
     private function requireBatch(array $items): array
     {
@@ -169,13 +169,12 @@ final class Client
 
         $clean = [];
         foreach ($items as $index => $item) {
-            $value = is_string($item) ? trim($item) : '';
-
-            if ($value === '') {
-                throw new InvalidArgumentException(sprintf('Batch item #%d must be a non-empty string', $index));
+            if ($item !== null && ! is_string($item)) {
+                throw new InvalidArgumentException(sprintf('Batch item #%d must be a string or null', $index));
             }
 
-            $clean[] = $value;
+            // Empty and null items are sent as-is; the API answers them with a per-item invalid_* error.
+            $clean[] = $item === null ? null : trim($item);
         }
 
         return $clean;

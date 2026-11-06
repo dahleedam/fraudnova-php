@@ -55,11 +55,13 @@ $options = new IpOptions(
     strictness: 1,                                 // 0 = lenient, 3 = strict
     mobile: false,                                 // the request comes from a mobile device
     userAgent: $_SERVER['HTTP_USER_AGENT'] ?? null, // enables the device and browser fields
-    userLanguage: $_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? null,
+    userLanguage: strtok($_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? '', ',') ?: null, // first language tag only
 );
 
 $result = $client->ip($visitorIp, $options);
 ```
+
+`userLanguage` takes a short language tag such as `en-US`, not the whole `Accept-Language` header, so the example sends only the first tag.
 
 An empty value, or a `strictness` outside 0 to 3, throws `FraudNova\Exception\InvalidArgumentException` before any request is sent.
 
@@ -87,7 +89,7 @@ foreach (array_chunk($ips, Client::BATCH_MAX) as $chunk) {
 
 `batchIp()` takes the same `IpOptions` as `ip()`, and `batchPhone()` takes one country hint for the whole batch. `BatchResult` is countable and iterable; each `BatchItem` has `subject`, `success`, `result` (an `IpResult`, `EmailResult` or `PhoneResult`, or `null` on failure) and `error`. `hasFailures()` tells you whether any item failed.
 
-One bad value never fails the batch. A failed item carries one of these error codes:
+Items must be strings or `null`; any other type throws `InvalidArgumentException` before the request is sent. One bad value never fails the batch, so an empty string or `null` comes back as a failed item. A failed item carries one of these error codes:
 
 | `error` | Helper | Meaning |
 | --- | --- | --- |
