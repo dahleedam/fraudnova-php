@@ -48,4 +48,8 @@ These are your steps to publish the package. The code, tests and docs are alread
 
 ## Rules
 
-Nothing public (README, changelog, docs, code, commit messages) may name the upstream data provider or describe keys, key pools or quota internals. CI runs `composer validate --strict` and the leak-guard test (`tests/LeakGuardTest.php`) on every push, so a release with either problem does not go green.
+Nothing public (README, changelog, docs, code, commit messages) may name the upstream data provider or describe keys, key pools or quota internals.
+
+CI runs `composer validate --strict` and the leak-guard test (`tests/LeakGuardTest.php`) on every push. The leak guard only catches the provider's name or abbreviation in tracked files. It does not read commit messages, and it cannot tell when text describes keys, key pools or quota internals, so check those by hand before you push.
+
+`tests/ReleaseConsistencyTest.php` fails when `Client::VERSION` differs from the newest version heading in `CHANGELOG.md`, so bump both together.
