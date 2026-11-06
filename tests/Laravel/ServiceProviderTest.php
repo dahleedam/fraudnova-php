@@ -73,12 +73,10 @@ final class ServiceProviderTest extends TestCase
     {
         config(['fraudnova.api_key' => '']);
 
-        try {
-            $this->app?->make(Client::class);
-            $this->fail('Expected InvalidArgumentException');
-        } catch (InvalidArgumentException $e) {
-            $this->assertStringContainsString('FRAUDNOVA_API_KEY', $e->getMessage());
-        }
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('FRAUDNOVA_API_KEY');
+
+        $this->app?->make(Client::class);
     }
 
     public function test_config_is_publishable(): void
