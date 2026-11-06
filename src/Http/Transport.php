@@ -18,6 +18,11 @@ use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 
+/**
+ * Sends requests to the FraudNova API and decodes the responses.
+ *
+ * @internal
+ */
 final class Transport
 {
     private readonly string $baseUrl;
