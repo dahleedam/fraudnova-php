@@ -128,4 +128,32 @@ final class TransportRetryTest extends TestCase
         $this->assertSame($expected, (string) $http->requests[0]->getBody());
         $this->assertSame($expected, (string) $http->requests[1]->getBody());
     }
+
+    public function test_retry_after_above_the_cap_is_rethrown_without_sleeping(): void
+    {
+        $http = new FakeHttpClient;
+        $this->rateLimit429($http, ['Retry-After' => '86400']);
+        $http->json(200, ['success' => true]);
+
+        try {
+            $this->transport($http, $this->policy())->get('/balance');
+            $this->fail('Expected RateLimitException');
+        } catch (RateLimitException $e) {
+            $this->assertSame(86400, $e->retryAfter());
+            $this->assertCount(1, $http->requests);
+            $this->assertSame([], $this->sleeps);
+        }
+    }
+
+    public function test_retry_after_within_the_cap_is_honoured(): void
+    {
+        $http = new FakeHttpClient;
+        $this->rateLimit429($http, ['Retry-After' => '30']);
+        $http->json(200, ['success' => true]);
+
+        $this->transport($http, $this->policy())->get('/balance');
+
+        $this->assertCount(2, $http->requests);
+        $this->assertSame([30.0], $this->sleeps);
+    }
 }
