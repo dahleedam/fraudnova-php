@@ -292,8 +292,8 @@ final class ClientTest extends TestCase
 
         $this->client($http)->balance();
 
-        $this->assertSame('1.0.0', Client::VERSION);
-        $this->assertStringStartsWith('fraudnova-php/1.0.0 php/', $http->lastRequest()->getHeaderLine('User-Agent'));
+        $this->assertSame('1.0.1', Client::VERSION);
+        $this->assertStringStartsWith('fraudnova-php/1.0.1 php/', $http->lastRequest()->getHeaderLine('User-Agent'));
     }
 
     public function test_retry_policy_retries_a_429_through_the_public_api(): void

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-08
+
+### Changed
+
+- No code changes. Re-release after a repository history clean-up, so the tag Packagist serves matches the commit on GitHub.
+
 ## [1.0.0] - 2026-11-06
 
 ### Added
@@ -18,5 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Automatic PSR-18 client discovery (Guzzle or the Symfony HTTP client), or inject your own client.
 - Laravel bridge: auto-discovered service provider, `FraudNova` facade and publishable config.
 
-[Unreleased]: https://github.com/dahleedam/fraudnova-php/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/dahleedam/fraudnova-php/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/dahleedam/fraudnova-php/releases/tag/v1.0.1
 [1.0.0]: https://github.com/dahleedam/fraudnova-php/releases/tag/v1.0.0

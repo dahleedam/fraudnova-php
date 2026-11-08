@@ -17,7 +17,7 @@ use Psr\Http\Message\StreamFactoryInterface;
 
 final class Client
 {
-    public const VERSION = '1.0.0';
+    public const VERSION = '1.0.1';
 
     public const DEFAULT_BASE_URL = 'https://fraudnova.com/api/v1';
 

@@ -33,7 +33,7 @@ final class TransportTest extends TestCase
         $this->assertSame('https://fraudnova.com/api/v1/check?ip=8.8.8.8&strictness=2', (string) $request->getUri());
         $this->assertSame('application/json', $request->getHeaderLine('Accept'));
         $this->assertSame('Bearer fn_test', $request->getHeaderLine('Authorization'));
-        $this->assertStringStartsWith('fraudnova-php/1.0.0 php/', $request->getHeaderLine('User-Agent'));
+        $this->assertStringStartsWith('fraudnova-php/1.0.1 php/', $request->getHeaderLine('User-Agent'));
     }
 
     public function test_trailing_slash_in_base_url_is_tolerated(): void
